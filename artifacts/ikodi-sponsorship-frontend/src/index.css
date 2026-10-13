@@ -345,3 +345,175 @@ td {font-size:14px;padding:15px 11px}
 @media(max-width:780px){.mobile-nav{overflow-x:auto;justify-content:flex-start;scrollbar-width:thin;scrollbar-color:#537083 #142e44}.mobile-nav a{flex:0 0 54px;min-width:54px;padding:5px 1px;font-size:9px}.mobile-nav a span{font-size:9px;white-space:nowrap}.mobile-nav a:last-child{margin-right:2px}}
 @media(max-width:600px){.report-highlight{align-items:flex-start;flex-direction:column;padding:19px}.report-highlight strong{font-size:21px}.report-chart{height:245px}.report-chart.short{height:220px}.report-actions{width:100%}.report-actions .btn{flex:1}.report-period{width:100%}.report-period select{flex:1}}
 @media print {.report-actions,.report-period{display:none!important}.reports-page{max-width:none}.report-grid{grid-template-columns:1fr 1fr}.report-chart{height:220px}.report-highlight{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+
+/* ==========================================================================
+   Student ID Card Production & Printing Styles
+   ========================================================================== */
+.id-card {
+  max-width: 480px;
+  margin: 18px auto;
+  background: linear-gradient(135deg, #173f55 0%, #1e526e 100%);
+  color: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 12px 30px rgba(18, 48, 66, 0.22);
+  border: 2px solid #336785;
+  position: relative;
+  overflow: hidden;
+  font-family: var(--app-font-sans);
+}
+.id-card:before {
+  content: "";
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 180px;
+  height: 180px;
+  background: radial-gradient(circle, rgba(235, 194, 87, 0.18) 0%, transparent 70%);
+  border-radius: 50%;
+}
+.id-card-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+}
+.id-card-head img {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  background: #fff;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+.id-card-head b {
+  font: 800 14px Manrope, sans-serif;
+  letter-spacing: 0.05em;
+  display: block;
+  color: #f7d984;
+}
+.id-card-head small {
+  font-size: 9px;
+  color: #c0d8de;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.id-person {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.id-photo {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  background: #ebf4f2;
+  color: #174b46;
+  font-size: 20px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  border: 2px solid #f7d984;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  flex-shrink: 0;
+}
+.id-person h3 {
+  font: 800 17px Manrope, sans-serif;
+  margin: 0 0 4px;
+  color: #ffffff;
+}
+.id-person small {
+  font-size: 11px;
+  color: #b5d5de;
+}
+.id-details {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 16px;
+  background: rgba(14, 38, 53, 0.5);
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 16px;
+}
+.id-details div span {
+  display: block;
+  font-size: 9px;
+  color: #8faec0;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 2px;
+}
+.id-details div b {
+  font-size: 12px;
+  color: #f0f7f8;
+}
+.id-barcode-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin: 10px 0 14px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+}
+.id-barcode-lines {
+  height: 24px;
+  width: 100%;
+  max-width: 240px;
+  background: repeating-linear-gradient(90deg, #fff 0, #fff 2px, transparent 2px, transparent 4px, #fff 4px, #fff 7px, transparent 7px, transparent 9px, #fff 9px, #fff 13px, transparent 13px, transparent 15px);
+  opacity: 0.85;
+}
+.id-barcode-serial {
+  font-family: var(--app-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: #f7d984;
+}
+.id-card-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 9px;
+  color: #92b8c5;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding-top: 10px;
+  letter-spacing: 0.04em;
+}
+
+/* Print Overrides */
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .sidebar, .topbar, .mobile-nav, .report-actions, .report-period, .no-print, .btn, .icon-button, button {
+    display: none !important;
+  }
+  .main {
+    margin-left: 0 !important;
+    padding: 0 !important;
+  }
+  .page {
+    padding: 10px !important;
+    max-width: 100% !important;
+  }
+  .id-card {
+    box-shadow: none !important;
+    border: 2px solid #142e44 !important;
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+    page-break-inside: avoid !important;
+    margin: 20px auto !important;
+  }
+  .panel {
+    border: 1px solid #ccc !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+  }
+}
+
