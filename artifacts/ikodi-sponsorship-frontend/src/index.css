@@ -145,7 +145,160 @@ tr:last-child td{border-bottom:0}tbody tr:hover{background:#fafbf8}
 .id-card-foot{display:flex;justify-content:space-between;border-top:1px solid #ffffff28;margin-top:18px;padding-top:11px;font-size:8px;color:#d0e4df;position:relative;z-index:1}
 .timeline{display:grid;gap:0}.timeline-item{display:flex;gap:12px;position:relative;padding-bottom:15px}.timeline-item:not(:last-child):before{content:"";position:absolute;left:5px;top:14px;bottom:0;border-left:1px solid #d9e5dc}.timeline-dot{width:11px;height:11px;border-radius:50%;background:#4ba391;border:2px solid white;box-shadow:0 0 0 1px #b9d6c9;z-index:1;flex:none;margin-top:3px}.timeline-item b{font-size:10px;color:#38586a;display:block}.timeline-item small{font-size:9px;color:#879396;display:block;margin-top:4px}
 .mobile-nav{display:none}
+
+/* Readability pass: retain the IKODI palette while giving long-session work
+   a more comfortable type scale and clearer hierarchy. */
+body {font-size:15px;line-height:1.55}
+.sidebar {padding:24px 15px}
+.brand strong {font-size:19px}
+.brand small {font-size:11px}
+.side-label {font-size:12px}
+.nav-link {font-size:14px;padding:12px}
+.demo-note,.demo-note b {font-size:13px}
+.profile-mini b {font-size:14px}
+.profile-mini small {font-size:12px}
+.topbar {height:74px}
+.crumb {font-size:14px}
+.role-select {font-size:14px;min-height:42px}
+.page {padding-top:34px}
+.eyebrow {font-size:12px}
+h1 {font-size:clamp(30px,3.1vw,39px)}
+.subhead {font-size:16px;line-height:1.65;max-width:820px}
+.btn {font-size:14px;min-height:42px;padding:11px 16px}
+.btn.small {font-size:13px;min-height:38px}
+.stat-head {font-size:14px}
+.stat strong {font-size:30px}
+.stat-foot {font-size:13px;line-height:1.45}
+.panel {padding:22px}
+.panel h2 {font-size:18px}
+.panel h3 {font-size:16px}
+.panel-kicker {font-size:13px;line-height:1.45}
+.text-link {font-size:14px}
+th {font-size:12px;padding:13px 11px}
+td {font-size:14px;padding:15px 11px}
+.person b {font-size:14px}
+.person small {font-size:13px}
+.badge {font-size:12px;padding:5px 10px}
+.searchbar {height:44px}
+.searchbar input,.select {font-size:14px}
+.select {height:44px}
+.op-card {padding:20px}
+.op-card h3 {font-size:17px}
+.op-card p {font-size:14px;line-height:1.65;min-height:0}
+.op-meta {font-size:13px}
+.op-meta strong {font-size:15px}
+.criteria span {font-size:12px}
+.task b {font-size:14px}
+.task small {font-size:13px;line-height:1.45}
+.hero-band h2 {font-size:24px}
+.hero-band p {font-size:15px;line-height:1.6}
+.role-card {padding:18px}
+.role-card b {font-size:15px}
+.role-card small {font-size:13px;line-height:1.55}
+.landing-nav {height:82px}
+.landing-logo strong {font-size:20px}
+.landing-logo small {font-size:11px}
+.landing-copy>p {font-size:17px;line-height:1.75}
+.trust-line {font-size:13px}
+.art-tile .tile-label {font-size:11px}
+.art-tile strong {font-size:23px}
+.art-tile small {font-size:13px}
+.float-note {font-size:13px}
+.float-note b {font-size:14px}
+.entry-section-head h2 {font-size:23px}
+.entry-section-head p {font-size:14px}
+.footer-note {font-size:13px}
+.field label {font-size:13px}
+.field input,.field select,.field textarea {font-size:14px;min-height:44px}
+.detail-row {font-size:14px;line-height:1.5}
+.notice {font-size:14px;line-height:1.6}
+.empty {font-size:15px;line-height:1.6}
+.message-body b {font-size:15px}
+.message-body p {font-size:14px;line-height:1.5}
+.message-body small {font-size:12px}
+.timeline-item b {font-size:14px}
+.timeline-item small {font-size:13px;line-height:1.5}
+.audit-summary {display:flex;align-items:center;justify-content:space-between;gap:16px;padding:19px 22px;margin-bottom:17px;background:#eaf2eb;border:1px solid #d8e5d9;border-radius:14px}
+.audit-summary>div {display:flex;align-items:center;gap:13px}
+.audit-summary-icon {width:42px;height:42px;display:grid;place-items:center;background:#d7ebe1;color:#216f65;border-radius:12px}
+.audit-summary b {display:block;font-size:16px;color:#254356}
+.audit-summary small {display:block;font-size:13px;color:#647a78;margin-top:3px}
+.audit-range,.audit-device {display:inline-flex;align-items:center;gap:7px;color:#627a79;font-size:13px}
+.audit-toolbar {margin:0 0 14px}
+.audit-toolbar .searchbar {flex:1;max-width:520px}
+.audit-result-count {font-size:13px;color:#687d7c;margin-left:auto}
+.audit-event {display:flex;align-items:center;gap:11px;min-width:230px}
+.audit-event b {display:block;color:#254356;font-size:14px;white-space:normal}
+.audit-event small {display:block;color:#7b8b8d;font-size:13px;margin-top:3px}
+.audit-device {white-space:nowrap}
+.audit-limited {max-width:700px;padding:34px;margin-top:8px}
+.audit-limited .audit-mark {width:48px;height:48px;display:grid;place-items:center;border-radius:14px;background:#e8f1ec;color:#26766d;margin-bottom:15px}
+.audit-limited h2 {font-size:22px;margin:0 0 8px}
+.audit-limited p {font-size:16px;line-height:1.65;color:#63787d;max-width:540px}
+.audit-disclaimer {display:flex;align-items:flex-start;gap:10px}
+.audit-disclaimer svg {flex:none;margin-top:2px}
+.audit-disclaimer b {color:#285a53}
+@media(max-width:780px) {
+  .topbar {height:66px}
+  .page {padding-top:25px}
+  .mobile-nav {overflow-x:auto;justify-content:flex-start;gap:2px;padding-inline:5px}
+  .mobile-nav a {flex:1;min-width:58px;font-size:11px;gap:4px;padding:7px 3px}
+  .mobile-nav a svg {width:18px;height:18px}
+  .stat {padding:15px}
+  .stat-head {font-size:13px}
+  .stat-foot {font-size:12px}
+  .panel {padding:18px}
+  .audit-summary {padding:16px;align-items:flex-start}
+  .audit-summary small {max-width:230px}
+  .audit-toolbar {display:flex}
+  .audit-toolbar .searchbar {max-width:none}
+}
+@media(max-width:480px) {
+  body {font-size:15px}
+  .page {padding-inline:14px}
+  .crumb {font-size:13px}
+  .role-select {font-size:12px;max-width:136px}
+  .stat strong {font-size:26px}
+  .page-heading h1 {font-size:30px}
+  .subhead {font-size:15px}
+  .audit-summary {gap:9px}
+  .audit-summary b {font-size:14px}
+  .audit-summary small {font-size:12px}
+  .audit-summary>.badge {font-size:10px;white-space:nowrap}
+  .audit-toolbar {display:grid;grid-template-columns:1fr}
+  .audit-toolbar .searchbar {grid-column:auto}
+  .audit-result-count {margin-left:0}
+  .audit-table td {white-space:normal;min-width:100px}
+  .audit-table th {white-space:nowrap}
+  .audit-event {min-width:210px}
+  .footer-note {font-size:12px}
+}
 @media(max-width:1100px){.sidebar{width:220px}.main{margin-left:220px}.page{padding:26px 24px 45px}.opportunity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.role-card-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:780px){.sidebar{display:none}.main{margin:0 0 62px}.topbar{height:60px;padding:0 17px}.page{padding:22px 16px 35px}.mobile-nav{display:flex;position:fixed;z-index:20;bottom:0;left:0;right:0;background:#142e44;padding:7px 8px calc(7px + env(safe-area-inset-bottom));justify-content:space-around}.mobile-nav a{display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;color:#b8cbd1;font-size:8px;padding:5px}.mobile-nav a.active{color:#f2d681}.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.stat{padding:13px}.stat strong{font-size:22px}.grid-two,.grid-equal{grid-template-columns:1fr;gap:0}.page-heading{margin-bottom:20px}.hero-band{padding:20px;align-items:flex-start;flex-direction:column}.role-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.landing-nav{padding:0 17px;height:66px}.landing-main{padding:13px 18px 36px}.landing-hero{grid-template-columns:1fr;gap:24px;padding:22px 0 31px}.landing-copy h1{font-size:47px}.entry-art{min-height:270px}.footer-note{gap:12px;flex-direction:column}.landing .role-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.landing .role-card{min-height:120px}}
 @media(max-width:480px){.top-actions{gap:6px}.role-select{font-size:10px;max-width:145px;padding:7px}.crumb{font-size:10px}.opportunity-grid{grid-template-columns:1fr}.role-card-grid{grid-template-columns:1fr 1fr}.role-card{padding:12px}.page-heading{flex-direction:column;align-items:flex-start}.searchbar{min-width:0;flex:1}.toolbar{display:grid;grid-template-columns:1fr 1fr}.toolbar .searchbar{grid-column:1/-1}.landing-copy h1{font-size:41px}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.drawer{padding:20px}.drawer-actions .btn{flex:1}}
 @media print{.sidebar,.topbar,.mobile-nav,.drawer-actions,.no-print{display:none!important}.main{margin:0}.app{background:white}.page{padding:0}.id-card{print-color-adjust:exact;-webkit-print-color-adjust:exact;box-shadow:none;margin:0}}
+@media(max-width:780px) {
+  .mobile-nav a {font-size:11px;padding:7px 3px}
+  .stat {padding:15px}
+  .stat strong {font-size:25px}
+  .stat-head {font-size:13px}
+  .stat-foot {font-size:12px}
+  .role-card b {font-size:14px}
+  .role-card small {font-size:12px}
+  .landing .role-card small {font-size:12px}
+  .landing-copy>p {font-size:16px}
+  .footer-note {font-size:12px}
+}
+@media(max-width:480px) {
+  .mobile-nav a {font-size:10px}
+  .stat strong {font-size:23px}
+  .role-card b {font-size:13px}
+  .role-card small {font-size:12px}
+  .landing .role-card {padding:12px}
+  .landing-copy h1 {font-size:41px}
+  .searchbar input,.select {font-size:13px}
+  .field label {font-size:13px}
+  .field input,.field select,.field textarea {font-size:14px}
+  th {font-size:11px}
+  td {font-size:13px}
+}

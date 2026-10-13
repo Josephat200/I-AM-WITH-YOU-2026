@@ -26,6 +26,7 @@ const navItems=[
   {href:'/reviews',label:'Reviews',icon:ClipboardCheck},
   {href:'/records',label:'Records & ID cards',icon:FolderOpen},
   {href:'/messages',label:'Messages',icon:MessageSquare},
+  {href:'/audit',label:'Audit trail',icon:Activity},
 ];
 const initialOpps:Opportunity[]=[
   {id:101,title:'Kijani STEM Futures Award',sponsor:'Mwangaza Education Trust',amount:85000,deadline:'2026-07-18',status:'Open',description:'Supporting ambitious learners entering science, technology, engineering and mathematics pathways across Kenya.',criteria:['STEM pathway','KCSE mean grade B-','Demonstrated need'],funded:18},
@@ -88,8 +89,10 @@ function App(){
   const route=location==='/'?'entry':location.replace('/','')||'portal';
   const roleName=role.split(' / ')[0];
   const displayName=role==='Applicant / Beneficiary'?profile.name:role==='Parent / Guardian'?profile.guardian:role==='Sponsor / Funding Organization'?'Mwangaza Education Trust':role==='Reviewer / Selection Committee'?'Nadia Njoroge':role==='Secretary'?'Lilian Atieno':role==='Admin'?'Daniel Kiplagat':'Mercy W. Akinyi';
-  const roleAwareItems=navItems.filter(i=>i.href!=='/reviews'||['Reviewer / Selection Committee','Admin','Super Admin','Secretary'].includes(role))
-    .filter(i=>i.href!=='/records'||['Admin','Super Admin','Secretary'].includes(role));
+  const roleAwareItems=navItems
+    .filter(i=>i.href!=='/reviews'||['Reviewer / Selection Committee','Admin','Super Admin','Secretary'].includes(role))
+    .filter(i=>i.href!=='/records'||['Admin','Super Admin','Secretary'].includes(role))
+    .filter(i=>i.href!=='/audit'||['Admin','Super Admin','Secretary'].includes(role));
   const toast=(text:string)=>{setNotice(text);};
   const chooseRole=(next:Role)=>{setRole(next);navigate('/portal');toast(`${next} demo view selected`)}
   const doApply=(id:number)=>{setApplied(a=>a.includes(id)?a:[...a,id]);setModal(null);toast('Demo application submitted and saved in this browser.');};
@@ -99,7 +102,7 @@ function App(){
   const sendMessage=(data:FormData)=>{const fresh:Message={id:Date.now(),subject:String(data.get('subject')||'Untitled message'),body:String(data.get('body')||''),audience:String(data.get('audience')||'Selected student'),channel:String(data.get('channel')||'In-app'),date:'Just now',status:'Simulated',sender:displayName};setMessages(m=>[fresh,...m]);setModal(null);toast('Demo message composed. No email or SMS was sent.')}
   const recordUpload=(name:string)=>{setUploads(u=>[name,...u]);setModal(null);toast('Demo upload recorded. The file was not transferred or stored.')}
   const openForm=(kind:string,item?:any)=>setModal({kind,item});
-  const pageTitle:Record<string,string>={portal:'Your IKODI workspace',applications:'Applications',opportunities:'Scholarship opportunities',reviews:'Review desk',records:'Records & oversight',messages:'Messages'};
+  const pageTitle:Record<string,string>={portal:'Your IKODI workspace',applications:'Applications',opportunities:'Scholarship opportunities',reviews:'Review desk',records:'Records & oversight',messages:'Messages',audit:'Audit trail'};
   if(route==='entry')return <Entry onChoose={chooseRole}/>;
   const currentPage=pageTitle[route];
   if(!currentPage)return <NotFound/>;
@@ -125,9 +128,10 @@ function App(){
         {route==='reviews'&&<Reviews role={role} candidates={candidates} setCandidates={setCandidates} setModal={openForm}/>}
         {route==='records'&&<Records role={role} profile={profile} toast={toast}/>}
         {route==='messages'&&<Messages role={role} messages={messages} setModal={openForm}/>}
+        {route==='audit'&&<Audit role={role}/>}
       </div>
     </main>
-    <nav className="mobile-nav">{navItems.filter(i=>i.href!=='/records').map(i=><Link key={i.href} href={i.href} className={location===i.href?'active':''}><i.icon size={17}/>{i.label.split(' ')[0]}</Link>)}</nav>
+    <nav className="mobile-nav">{roleAwareItems.filter(i=>i.href!=='/records').map(i=><Link key={i.href} href={i.href} className={location===i.href?'active':''}><i.icon size={17}/>{i.label.split(' ')[0]}</Link>)}</nav>
     {notice&&<div role="status" style={{position:'fixed',right:20,bottom:23,zIndex:40,background:'#173f50',color:'white',padding:'12px 17px',borderRadius:10,fontSize:12,boxShadow:'0 8px 25px #15384d33',maxWidth:360}}>{notice}</div>}
     {modal&&<Modal modal={modal} close={()=>setModal(null)} role={role} profile={profile} setProfile={setProfile} opps={opps} doApply={doApply} saveOpportunity={saveOpportunity} reviewAction={reviewAction} sendMessage={sendMessage} saveUpload={recordUpload} toast={toast}/>}
   </div>
@@ -217,6 +221,31 @@ function Records({role,profile,toast}:{role:Role;profile:any;toast:(t:string)=>v
  {card&&<div className="panel"><div className="panel-head"><div><h2>Student ID card preview</h2><div className="panel-kicker">Printed preview · sample learner profile</div></div><button className="btn small" onClick={()=>window.print()}><Printer size={14}/>Print card</button></div><IDCard profile={profile}/><p style={{textAlign:'center',fontSize:10,color:'#829093'}}>Printing opens your browser’s print dialog. This is not an official credential.</p></div>}
  <div className="notice">Activity history and session labels are sample records. They are not connected to real sign-in tracking or a live audit service.</div></>}
 
+function Audit({role}:{role:Role}){
+ const [query,setQuery]=useState('');
+ const [eventType,setEventType]=useState('All activity');
+ const allowed=['Secretary','Admin','Super Admin'].includes(role);
+ const events=initialActivity.map((row,index)=>({
+   id:index+1,actor:row[0],action:row[1],time:row[2],device:row[3],
+   type:index===0?'Review':index===1?'Organization':index===2?'Application':'Session',
+ }));
+ const filtered=events.filter(event=>
+   `${event.actor} ${event.action} ${event.time} ${event.device} ${event.type}`.toLowerCase().includes(query.toLowerCase())&&
+   (eventType==='All activity'||event.type===eventType)
+ );
+ return <><PageHead eyebrow="ADMINISTRATION & OVERSIGHT" title="Audit trail" description="A clear view of example activity and session events across the IKODI demo workspace."/>
+   {!allowed?<section className="panel audit-limited" role="status"><span className="audit-mark"><Shield size={21}/></span><h2>Staff access only</h2><p>The audit trail is available in the Secretary, Admin and Super Admin demo views. Switch roles to explore the sample activity log.</p><div className="badge review">Demo role access · not real security</div></section>:
+   <>
+    <div className="audit-summary"><div><span className="audit-summary-icon"><Activity size={18}/></span><div><b>Sample activity log</b><small>Illustrative records · not connected to live sessions</small></div></div><span className="badge pending">{events.length} sample events</span></div>
+    <section className="panel audit-panel"><div className="panel-head"><div><h2>Recent activity</h2><div className="panel-kicker">Actions and session labels shown in local demo data</div></div><span className="audit-range"><Clock3 size={14}/> Recent sample events</span></div>
+      <div className="toolbar audit-toolbar"><div className="searchbar"><Search size={16}/><input aria-label="Search audit events" placeholder="Search people, actions or devices" value={query} onChange={e=>setQuery(e.target.value)}/></div><select className="select" aria-label="Filter audit events by type" value={eventType} onChange={e=>setEventType(e.target.value)}><option>All activity</option>{['Review','Organization','Application','Session'].map(type=><option key={type}>{type}</option>)}</select><span className="audit-result-count">{filtered.length} {filtered.length===1?'event':'events'}</span></div>
+      {filtered.length?<div className="table-wrap"><table className="audit-table"><thead><tr><th>Activity</th><th>Event type</th><th>When</th><th>Session label</th></tr></thead><tbody>{filtered.map(event=><tr key={event.id}><td><div className="audit-event"><div className="avatar">{initials(event.actor)}</div><div><b>{event.action}</b><small>{event.actor}</small></div></div></td><td><Badge>{event.type}</Badge></td><td>{event.time}</td><td><span className="audit-device"><Activity size={14}/>{event.device}</span></td></tr>)}</tbody></table></div>:<div className="empty"><div className="empty-icon"><Search size={18}/></div>No sample events match this search. Try another term or activity type.</div>}
+    </section>
+    <div className="notice audit-disclaimer"><Shield size={16}/><span><b>Sample data notice.</b> Audit entries and session/device labels are fictional examples for this frontend demo. They do not represent real authentication, monitoring or security logs.</span></div>
+   </>}
+ </>;
+}
+
 function IDCard({profile}:{profile:any}){return <div className="id-card"><div className="id-card-head"><img src="/ikodi-logo.jpeg" alt="IKODI"/><div><b>IKODI · LEARNER CARD</b><small>SPONSORSHIP & SCHOLARSHIP PROGRAMME</small></div></div><div className="id-person"><div className="id-photo">{initials(profile.name)}</div><div><h3>{profile.name}</h3><small>{profile.grade}</small></div></div><div className="id-details"><div><span>Student ID</span><b>IK-2048</b></div><div><span>School</span><b>{profile.school}</b></div><div><span>County</span><b>Kisumu</b></div><div><span>Card status</span><b>Demo preview</b></div></div><div className="id-card-foot"><span>IKODI · I am with you</span><span>Valid for preview only · 2026</span></div></div>}
 
 function Messages({role,messages,setModal}:{role:Role;messages:Message[];setModal:(k:string,item?:any)=>void}){
@@ -247,6 +276,6 @@ function Modal({modal,close,role,profile,setProfile,opps,doApply,saveOpportunity
 
 const queryClient=new QueryClient();
 function RoutedErrorBoundary({children}:{children:ReactNode}){const [location]=useLocation();return <ErrorBoundary resetKey={location}>{children}</ErrorBoundary>}
-function Router(){return <RoutedErrorBoundary><Switch><Route path="/" component={App}/><Route path="/portal" component={App}/><Route path="/applications" component={App}/><Route path="/opportunities" component={App}/><Route path="/reviews" component={App}/><Route path="/records" component={App}/><Route path="/messages" component={App}/><Route component={NotFound}/></Switch></RoutedErrorBoundary>}
+function Router(){return <RoutedErrorBoundary><Switch><Route path="/" component={App}/><Route path="/portal" component={App}/><Route path="/applications" component={App}/><Route path="/opportunities" component={App}/><Route path="/reviews" component={App}/><Route path="/records" component={App}/><Route path="/messages" component={App}/><Route path="/audit" component={App}/><Route component={NotFound}/></Switch></RoutedErrorBoundary>}
 function Root(){return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/,'')}><Router/></WouterRouter><Toaster/></TooltipProvider></QueryClientProvider>}
 export default Root;
