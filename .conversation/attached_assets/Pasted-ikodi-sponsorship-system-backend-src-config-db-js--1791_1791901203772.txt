@@ -1,0 +1,44 @@
+ikodi-sponsorship-system/
+├── backend/
+│   ├── src/
+│   │   ├── config/
+│   │   │   └── db.js                 # PostgreSQL connection pool using Supabase connection string
+│   │   ├── controllers/
+│   │   │   ├── authController.js     # Manages login, logout, and session tracking / audit logs
+│   │   │   ├── studentController.js  # Handles result uploads, profile pictures, & ID card generation
+│   │   │   ├── sponsorController.js  # Manages sponsor organizations and criteria
+│   │   │   ├── adminController.js    # Manages audit logs, role-based modifications, and user records
+│   │   │   └── messageController.js  # Handles messaging for students, parents, or both
+│   │   ├── middleware/
+│   │   │   ├── authMiddleware.js     # JWT validation and Role-Based Access Control (RBAC)
+│   │   │   └── auditMiddleware.js    # Tracks user login time, logout time, and actions performed
+│   │   ├── routes/
+│   │   │   ├── authRoutes.js
+│   │   │   ├── studentRoutes.js
+│   │   │   ├── sponsorRoutes.js
+│   │   │   ├── adminRoutes.js
+│   │   │   └── messageRoutes.js
+│   │   └── server.js                 # Main Express app, CORS configuration, and Railway PORT binding
+│   ├── .env                          # Local environment variables
+│   ├── package.json                  # Backend dependencies (express, pg, cors, dotenv, jsonwebtoken, multer)
+│   └── Procfile                      # Railway deployment process file (specifies start command)
+│
+├── frontend/
+│   ├── public/                       # Static HTML entry points for each portal role
+│   │   ├── index.html                # Login / Portals Entry
+│   │   ├── admin-dashboard.html      # Admin & Secretary portal (Audit logs, session histories, ID card printing)
+│   │   ├── student-dashboard.html    # Student portal (Upload results, profile picture, view/print ID)
+│   │   └── sponsor-dashboard.html    # Sponsor portal (Manage opportunities and applicants)
+│   ├── src/
+│   │   ├── css/
+│   │   │   └── styles.css            # Global styling + print media queries (`@media print`) for universal printing
+│   │   └── js/
+│   │       ├── api.js                # Centralized API wrapper pointing to your Railway backend URL
+│   │       ├── auth.js               # Manages JWT tokens, login states, and role redirection
+│   │       ├── student.js            # Handles result uploads, profile photo rendering, & ID card data printing
+│   │       ├── messaging.js          # Handles single/bulk messaging to students and parents
+│   │       └── print-utils.js        # Universal window.print() helpers for logs, tables, and ID cards
+│   ├── netlify.toml                  # Netlify deployment configuration & SPA/redirect rules
+│   └── package.json                  # Optional build script config if using modern bundlers
+│
+└── README.md                         # Full database schema setup guide and deployment instructions

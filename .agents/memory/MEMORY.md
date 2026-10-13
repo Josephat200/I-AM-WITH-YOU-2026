@@ -1,0 +1,1 @@
+- [IKODI frontend-only scope](ikodi-frontend-scope.md) — do not expand into backend work without the user's explicit request.

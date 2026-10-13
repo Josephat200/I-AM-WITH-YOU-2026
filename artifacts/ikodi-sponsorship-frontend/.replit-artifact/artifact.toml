@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "IKODI Sponsorship Portal"
+description = "A frontend-only, role-based portal for IKODI's scholarship and sponsorship program, with applicant, sponsor, reviewer, parent, and administrator experiences. Uses sample data for interactive preview and keeps backend integration configurable for later."
+version = "1.0.0"
+id = "artifacts/ikodi-sponsorship-frontend"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18364
+
+[services.development]
+run = "pnpm --filter @workspace/ikodi-sponsorship-frontend run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ikodi-sponsorship-frontend", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/ikodi-sponsorship-frontend/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18364"
+BASE_PATH = "/"
