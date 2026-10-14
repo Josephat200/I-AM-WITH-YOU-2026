@@ -12,10 +12,21 @@ const reviewRoutes = require('./routes/reviewRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const configuredOrigins = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 // Enable CORS for frontend clients (Netlify, Vite localhost, etc.)
 app.use(cors({
-  origin: '*',
+  origin: (origin, callback) => {
+    if (!origin || configuredOrigins.length === 0 || configuredOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error('Request origin is not allowed by the API.'));
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));

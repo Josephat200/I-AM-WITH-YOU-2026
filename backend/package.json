@@ -5,6 +5,7 @@
   "main": "src/server.js",
   "type": "commonjs",
   "scripts": {
+    "build": "node -e \"require('./netlify/functions/api'); console.log('Backend Netlify function is valid.')\"",
     "start": "node src/server.js",
     "dev": "node src/server.js"
   },

@@ -129,7 +129,9 @@ The backend can be deployed as a Netlify Function. Create a **separate Netlify
 site** for the backend and configure it as follows:
 
 1. Import this GitHub repository into Netlify.
-2. Set the **Base directory** to `backend`.
+2. Set the **Base directory** to `backend`. Do not select
+   `artifacts/ikodi-sponsorship-frontend` or another detected workspace
+   project; those are separate frontend/demo packages.
 3. Netlify will use [`backend/netlify.toml`](<C:/Users/SIR.JOSPHAT/Desktop/I AM WITH YOU/I-AM-WITH-YOU-2026/backend/netlify.toml>).
 4. Add these environment variables to the backend site:
    - `DATABASE_URL`: the Supabase PostgreSQL connection string.
@@ -138,7 +140,8 @@ site** for the backend and configure it as follows:
    - `SUPABASE_URL`: the Supabase project URL.
    - `SUPABASE_SERVICE_ROLE_KEY`: server-only Supabase service-role key.
    - `SUPABASE_STORAGE_BUCKET`: the private bucket used for uploads.
-5. Deploy the site. The backend URL will expose the existing API under
+5. Confirm the build settings are `npm run build`, publish directory `.`, and
+   functions directory `netlify/functions`. Deploy the site. The backend URL will expose the existing API under
    `https://YOUR-BACKEND-SITE.netlify.app/api/...`.
 6. On the frontend Netlify site, set `VITE_API_URL` to
    `https://YOUR-BACKEND-SITE.netlify.app/api`.
