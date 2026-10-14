@@ -1,10 +1,42 @@
-const { store } = require('../config/db');
+const { store, query, isLiveDatabase } = require('../config/db');
+const { uploadToSupabase } = require('../config/storage');
+const fs = require('fs');
+
+function profileShape(row) {
+  return {
+    id: row.id, userId: row.user_id, studentIdCode: row.student_id_code,
+    name: row.name, email: row.email, school: row.school, grade: row.grade,
+    county: row.county, guardian: row.guardian_name,
+    guardianPhone: row.guardian_phone, guardianEmail: row.guardian_email,
+    photoUrl: row.photo_url, idCardStatus: row.id_card_status,
+    idCardIssuedAt: row.id_card_issued_at
+  };
+}
 
 /**
  * Get student profile
  */
-function getProfile(req, res) {
+async function getProfile(req, res) {
   try {
+    if (isLiveDatabase()) {
+      const result = await query(`SELECT s.*,u.full_name AS name,u.email,u.role,u.phone,u.organization
+        FROM users u LEFT JOIN students s ON s.user_id=u.id
+        WHERE u.id=$1`, [req.user.id]);
+      const row = result.rows[0];
+      if (!row) return res.status(404).json({ success: false, message: 'User profile not found.' });
+      if (row.role === 'Parent / Guardian') {
+        const children = await query(`SELECT s.*,u.full_name AS name,u.email
+          FROM students s JOIN users u ON u.id=s.user_id
+          WHERE lower(s.guardian_email)=lower($1) ORDER BY s.created_at`, [row.email]);
+        return res.json({ success: true, profile: {
+          id: row.id, userId: row.id, name: row.name, email: row.email,
+          role: row.role, phone: row.phone, organization: row.organization,
+          children: children.rows.map(profileShape)
+        } });
+      }
+      if (!row.student_id_code) return res.status(404).json({ success: false, message: 'Student profile not found.' });
+      return res.json({ success: true, profile: profileShape(row) });
+    }
     const student = store.students[0] || {
       id: 'std-demo',
       name: 'Achieng O. Wanjala',
@@ -27,9 +59,14 @@ function getProfile(req, res) {
 /**
  * Update student profile
  */
-function updateProfile(req, res) {
+async function updateProfile(req, res) {
   try {
     const { name, school, grade, guardian, email, county } = req.body;
+    if (isLiveDatabase()) {
+      const result = await query(`UPDATE students SET school=COALESCE($1,school),grade=COALESCE($2,grade),guardian_name=COALESCE($3,guardian_name),county=COALESCE($4,county),updated_at=NOW() WHERE user_id=$5 RETURNING *`, [school || null, grade || null, guardian || null, county || null, req.user.id]);
+      if (!result.rows[0]) return res.status(404).json({ success: false, message: 'Student profile not found.' });
+      return res.json({ success: true, message: 'Student profile updated successfully.', profile: result.rows[0] });
+    }
     let student = store.students[0];
 
     if (!student) {
@@ -62,20 +99,29 @@ function updateProfile(req, res) {
 /**
  * Upload academic results / supporting documents
  */
-function uploadResults(req, res) {
+async function uploadResults(req, res) {
   try {
     const fileName = req.file ? req.file.originalname : (req.body.fileName || 'Academic Result Slip.pdf');
     const docType = req.body.documentType || 'Result slip';
 
+    let remoteUrl = null;
+    if (req.file && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      remoteUrl = await uploadToSupabase({ ...req.file, buffer: fs.readFileSync(req.file.path) }, 'documents');
+    }
     const newDoc = {
       id: 'doc-' + Date.now(),
       name: `${fileName} · ${docType}`,
       type: docType,
-      fileUrl: req.file ? `/uploads/${req.file.filename}` : '/mock-result-slip.pdf',
+      fileUrl: remoteUrl || (req.file ? `/uploads/${req.file.filename}` : '/mock-result-slip.pdf'),
       status: 'Received',
       uploadedAt: 'Just now'
     };
 
+    if (isLiveDatabase()) {
+      const result = await query(`INSERT INTO student_documents (student_id,document_type,file_name,file_url,file_size_bytes) SELECT id,$1,$2,$3,$4 FROM students WHERE user_id=$5 RETURNING *`, [docType, fileName, newDoc.fileUrl, req.file?.size || null, req.user.id]);
+      if (!result.rows[0]) return res.status(404).json({ success: false, message: 'Student profile not found.' });
+      return res.status(201).json({ success: true, message: 'Result document uploaded and registered in review queue.', document: result.rows[0] });
+    }
     store.documents.unshift(newDoc);
 
     store.auditLogs.unshift({
@@ -100,10 +146,18 @@ function uploadResults(req, res) {
 /**
  * Upload student profile photo
  */
-function uploadPhoto(req, res) {
+async function uploadPhoto(req, res) {
   try {
-    const photoUrl = req.file ? `/uploads/${req.file.filename}` : (req.body.photoUrl || '/ikodi-logo.jpeg');
-    if (store.students[0]) {
+    let remoteUrl = null;
+    if (req.file && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      remoteUrl = await uploadToSupabase({ ...req.file, buffer: fs.readFileSync(req.file.path) }, 'photos');
+    }
+    const photoUrl = remoteUrl || (req.file ? `/uploads/${req.file.filename}` : (req.body.photoUrl || '/ikodi-logo.jpeg'));
+    if (isLiveDatabase()) {
+      const result = await query(`UPDATE students SET photo_url=$1,updated_at=NOW()
+        WHERE user_id=$2 RETURNING *`, [photoUrl, req.user.id]);
+      if (!result.rows[0]) return res.status(404).json({ success: false, message: 'Student profile not found.' });
+    } else if (store.students[0]) {
       store.students[0].photoUrl = photoUrl;
     }
 
@@ -120,17 +174,25 @@ function uploadPhoto(req, res) {
 /**
  * Get verified Student ID Card data
  */
-function getIdCardData(req, res) {
+async function getIdCardData(req, res) {
   try {
-    const student = store.students[0] || {};
+    let student;
+    if (isLiveDatabase()) {
+      const result = await query(`SELECT s.*,u.full_name AS name
+        FROM students s JOIN users u ON u.id=s.user_id WHERE s.user_id=$1`, [req.user.id]);
+      student = result.rows[0];
+      if (!student) return res.status(404).json({ success: false, message: 'Student ID card not found.' });
+    } else {
+      student = store.students[0] || {};
+    }
     const cardData = {
-      studentIdCode: student.studentIdCode || 'IK-2048',
+      studentIdCode: student.student_id_code || student.studentIdCode || 'IK-2048',
       name: student.name || 'Achieng O. Wanjala',
       school: student.school || 'Kisumu Girls High School',
       grade: student.grade || 'Form 4 · STEM',
       county: student.county || 'Kisumu',
-      photoUrl: student.photoUrl || '/ikodi-logo.jpeg',
-      cardStatus: student.idCardStatus || 'Verified',
+      photoUrl: student.photo_url || student.photoUrl || '/ikodi-logo.jpeg',
+      cardStatus: student.id_card_status || student.idCardStatus || 'Verified',
       validUntil: '31 Dec 2026',
       issuer: 'IKODI Secretariat',
       barcodeNumber: 'IK2048-2026-KENYA'
@@ -145,9 +207,22 @@ function getIdCardData(req, res) {
 /**
  * Submit application to an opportunity
  */
-function applyOpportunity(req, res) {
+async function applyOpportunity(req, res) {
   try {
     const { opportunityId, notes } = req.body;
+    if (isLiveDatabase()) {
+      const result = await query(`INSERT INTO applications (opportunity_id,student_id,award_notes)
+        SELECT o.id,s.id,$2 FROM opportunities o CROSS JOIN students s
+        WHERE o.id=$1 AND s.user_id=$3
+        RETURNING id,opportunity_id,student_id,submitted_at,status,overall_score,recommendation,award_notes`, [opportunityId, notes || null, req.user.id]);
+      if (!result.rows[0]) return res.status(404).json({ success: false, message: 'Opportunity or student profile not found.' });
+      const row = result.rows[0];
+      return res.status(201).json({
+        success: true, message: 'Application submitted successfully.',
+        candidate: { id: row.id, status: row.status, score: Number(row.overall_score), recommendation: row.recommendation,
+          submitted: row.submitted_at, opportunityId: row.opportunity_id, studentId: row.student_id }
+      });
+    }
     const opp = store.opportunities.find(o => o.id === Number(opportunityId));
 
     if (!opp) {
@@ -193,7 +268,11 @@ function applyOpportunity(req, res) {
 /**
  * Get student documents
  */
-function getDocuments(req, res) {
+async function getDocuments(req, res) {
+  if (isLiveDatabase()) {
+    const result = await query(`SELECT d.* FROM student_documents d JOIN students s ON s.id=d.student_id WHERE s.user_id=$1 ORDER BY d.uploaded_at DESC`, [req.user.id]);
+    return res.json({ success: true, documents: result.rows });
+  }
   return res.json({ success: true, documents: store.documents });
 }
 

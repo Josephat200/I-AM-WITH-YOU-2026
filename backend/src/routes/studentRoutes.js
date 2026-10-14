@@ -6,6 +6,8 @@ const fs = require('fs');
 const studentController = require('../controllers/studentController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 
+router.use(authenticateToken);
+
 // Configure multer storage
 const uploadsDir = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -30,17 +32,17 @@ const upload = multer({
 
 // Profile endpoints
 router.get('/profile', studentController.getProfile);
-router.put('/profile', studentController.updateProfile);
+router.put('/profile', authorizeRoles('Applicant / Beneficiary', 'Parent / Guardian', 'Admin'), studentController.updateProfile);
 
 // Document & Photo uploads
-router.post('/upload-results', upload.single('resultDocument'), studentController.uploadResults);
-router.post('/upload-photo', upload.single('photo'), studentController.uploadPhoto);
+router.post('/upload-results', authorizeRoles('Applicant / Beneficiary', 'Parent / Guardian', 'Admin'), upload.single('resultDocument'), studentController.uploadResults);
+router.post('/upload-photo', authorizeRoles('Applicant / Beneficiary', 'Parent / Guardian', 'Admin'), upload.single('photo'), studentController.uploadPhoto);
 router.get('/documents', studentController.getDocuments);
 
 // Student ID card
 router.get('/id-card', studentController.getIdCardData);
 
 // Application submission
-router.post('/apply', studentController.applyOpportunity);
+router.post('/apply', authorizeRoles('Applicant / Beneficiary', 'Parent / Guardian'), studentController.applyOpportunity);
 
 module.exports = router;

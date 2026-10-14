@@ -1,191 +1,60 @@
-const { store } = require('../config/db');
+const { store, query, isLiveDatabase } = require('../config/db');
 
-/**
- * List all scholarship opportunities with optional status/search filters
- */
-function getOpportunities(req, res) {
+async function getOpportunities(req, res) {
   try {
     const { status, search } = req.query;
-    let list = [...store.opportunities];
-
-    if (status && status !== 'All opportunities') {
-      list = list.filter(o => o.status.toLowerCase() === status.toLowerCase());
-    }
-
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter(o =>
-        o.title.toLowerCase().includes(q) ||
-        o.sponsor.toLowerCase().includes(q) ||
-        (o.criteria && o.criteria.some(c => c.toLowerCase().includes(q)))
-      );
-    }
-
-    return res.json({ success: true, count: list.length, opportunities: list });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: 'Failed to retrieve opportunities.' });
-  }
+    let rows = isLiveDatabase() ? (await query(`SELECT id,title,sponsor_name AS sponsor,amount,deadline,status,description,criteria,funded_count AS funded FROM opportunities WHERE ($1::text IS NULL OR status=$1) AND ($2::text IS NULL OR title ILIKE '%'||$2||'%' OR sponsor_name ILIKE '%'||$2||'%') ORDER BY created_at DESC`, [status && status !== 'All opportunities' ? status : null, search || null])).rows : store.opportunities;
+    return res.json({ success: true, count: rows.length, opportunities: rows });
+  } catch (err) { console.error(err); return res.status(500).json({ success: false, message: 'Failed to retrieve opportunities.' }); }
 }
-
-/**
- * Create a new scholarship opportunity
- */
-function createOpportunity(req, res) {
+async function createOpportunity(req, res) {
   try {
-    const { title, sponsor, amount, deadline, status, description, criteria } = req.body;
-
-    if (!title || !sponsor || !amount) {
-      return res.status(400).json({ success: false, message: 'Title, sponsor organization, and funding amount are required.' });
+    const { title, sponsor, amount, deadline, status = 'Open', description = '', criteria = [] } = req.body;
+    if (!title || !sponsor || !amount || !deadline) return res.status(400).json({ success: false, message: 'Title, sponsor, amount, and deadline are required.' });
+    const parsed = Array.isArray(criteria) ? criteria : String(criteria).split(',').map(x => x.trim()).filter(Boolean);
+    if (isLiveDatabase()) {
+      const r = await query(`INSERT INTO opportunities (title,sponsor_name,amount,deadline,status,description,criteria) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id,title,sponsor_name AS sponsor,amount,deadline,status,description,criteria,funded_count AS funded`, [title, sponsor, amount, deadline, status, description, JSON.stringify(parsed)]);
+      return res.status(201).json({ success: true, message: 'Scholarship opportunity created successfully.', opportunity: r.rows[0] });
     }
-
-    const newOpp = {
-      id: Date.now(),
-      title,
-      sponsor,
-      amount: Number(amount),
-      deadline: deadline || '2026-09-30',
-      status: status || 'Open',
-      description: description || '',
-      criteria: Array.isArray(criteria) ? criteria : (typeof criteria === 'string' ? criteria.split(',').map(s => s.trim()).filter(Boolean) : []),
-      funded: 0
-    };
-
-    store.opportunities.unshift(newOpp);
-
-    store.auditLogs.unshift({
-      id: Date.now(),
-      actor: req.user?.fullName || sponsor,
-      action: `Created opportunity: "${title}"`,
-      time: 'Just now',
-      device: req.ip || 'Local',
-      type: 'Organization'
-    });
-
-    return res.status(201).json({
-      success: true,
-      message: 'Scholarship opportunity created successfully.',
-      opportunity: newOpp
-    });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: 'Failed to create opportunity.' });
-  }
+    const opportunity = { id: Date.now(), title, sponsor, amount: Number(amount), deadline, status, description, criteria: parsed, funded: 0 }; store.opportunities.unshift(opportunity);
+    return res.status(201).json({ success: true, message: 'Scholarship opportunity created successfully.', opportunity });
+  } catch (err) { console.error(err); return res.status(500).json({ success: false, message: 'Failed to create opportunity.' }); }
 }
-
-/**
- * Update an existing scholarship opportunity
- */
-function updateOpportunity(req, res) {
+async function updateOpportunity(req, res) {
   try {
-    const { id } = req.params;
-    const opp = store.opportunities.find(o => o.id === Number(id));
-
-    if (!opp) {
-      return res.status(404).json({ success: false, message: 'Opportunity not found.' });
+    const fields = ['title','sponsor_name','amount','deadline','status','description','criteria','funded_count'];
+    const map = { sponsor: 'sponsor_name', funded: 'funded_count' };
+    const keys = Object.keys(req.body).filter(k => fields.includes(k) || map[k]);
+    if (!keys.length) return res.status(400).json({ success: false, message: 'No changes supplied.' });
+    if (isLiveDatabase()) {
+      const sets = keys.map((k, i) => `${map[k] || k}=$${i + 1}`);
+      const vals = keys.map(k => k === 'criteria' && !Array.isArray(req.body[k]) ? String(req.body[k]).split(',').map(x => x.trim()) : req.body[k]);
+      const r = await query(`UPDATE opportunities SET ${sets.join(',')},updated_at=NOW() WHERE id=$${keys.length + 1} RETURNING id,title,sponsor_name AS sponsor,amount,deadline,status,description,criteria,funded_count AS funded`, [...vals, req.params.id]);
+      if (!r.rows[0]) return res.status(404).json({ success: false, message: 'Opportunity not found.' });
+      return res.json({ success: true, opportunity: r.rows[0] });
     }
-
-    const { title, sponsor, amount, deadline, status, description, criteria, funded } = req.body;
-
-    if (title) opp.title = title;
-    if (sponsor) opp.sponsor = sponsor;
-    if (amount !== undefined) opp.amount = Number(amount);
-    if (deadline) opp.deadline = deadline;
-    if (status) opp.status = status;
-    if (description !== undefined) opp.description = description;
-    if (criteria !== undefined) {
-      opp.criteria = Array.isArray(criteria) ? criteria : criteria.split(',').map(s => s.trim()).filter(Boolean);
-    }
-    if (funded !== undefined) opp.funded = Number(funded);
-
-    store.auditLogs.unshift({
-      id: Date.now(),
-      actor: req.user?.fullName || opp.sponsor,
-      action: `Updated opportunity: "${opp.title}"`,
-      time: 'Just now',
-      device: req.ip || 'Local',
-      type: 'Organization'
-    });
-
-    return res.json({ success: true, message: 'Opportunity updated successfully.', opportunity: opp });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: 'Failed to update opportunity.' });
-  }
+    const o = store.opportunities.find(x => String(x.id) === req.params.id); if (!o) return res.status(404).json({ success: false, message: 'Opportunity not found.' });
+    keys.forEach(k => { const target = map[k] || k; o[target === 'sponsor_name' ? 'sponsor' : target === 'funded_count' ? 'funded' : target] = req.body[k]; }); return res.json({ success: true, opportunity: o });
+  } catch (err) { console.error(err); return res.status(500).json({ success: false, message: 'Failed to update opportunity.' }); }
 }
-
-/**
- * Get applicants for a specific opportunity
- */
-function getApplicants(req, res) {
+async function getApplicants(req, res) {
   try {
-    const { id } = req.params;
-    const opp = store.opportunities.find(o => o.id === Number(id));
-
-    if (!opp) {
-      return res.status(404).json({ success: false, message: 'Opportunity not found.' });
+    if (isLiveDatabase()) {
+      const r = await query(`SELECT a.id,u.full_name AS name,s.school,s.grade,o.title AS opportunity,a.submitted_at AS submitted,a.status,a.overall_score AS score,a.recommendation FROM applications a JOIN students s ON s.id=a.student_id JOIN users u ON u.id=s.user_id JOIN opportunities o ON o.id=a.opportunity_id WHERE o.id=$1 ORDER BY a.submitted_at DESC`, [req.params.id]);
+      return res.json({ success: true, count: r.rows.length, applicants: r.rows });
     }
-
-    const applicants = store.candidates.filter(c => c.opportunity.toLowerCase() === opp.title.toLowerCase());
-    return res.json({ success: true, opportunity: opp.title, count: applicants.length, applicants });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: 'Failed to retrieve applicants.' });
-  }
+    const o = store.opportunities.find(x => String(x.id) === req.params.id); if (!o) return res.status(404).json({ success: false, message: 'Opportunity not found.' }); const a = store.candidates.filter(x => x.opportunity === o.title); return res.json({ success: true, count: a.length, applicants: a });
+  } catch (err) { return res.status(500).json({ success: false, message: 'Failed to retrieve applicants.' }); }
 }
-
-/**
- * Select / Award beneficiary
- */
-function selectBeneficiary(req, res) {
+async function selectBeneficiary(req, res) {
   try {
-    const { candidateId, opportunityId } = req.body;
-    const candidate = store.candidates.find(c => c.id === Number(candidateId));
-
-    if (!candidate) {
-      return res.status(404).json({ success: false, message: 'Candidate not found.' });
+    if (isLiveDatabase()) {
+      const r = await query(`UPDATE applications SET status='Awarded',recommendation='Recommend',updated_at=NOW() WHERE id=$1 RETURNING *`, [req.body.candidateId]); if (!r.rows[0]) return res.status(404).json({ success: false, message: 'Candidate not found.' }); await query('UPDATE opportunities SET funded_count=funded_count+1 WHERE id=$1', [req.body.opportunityId]); return res.json({ success: true, candidate: r.rows[0] });
     }
-
-    candidate.status = 'Completed';
-    candidate.recommendation = 'Recommend';
-
-    const opp = store.opportunities.find(o => o.id === Number(opportunityId) || o.title === candidate.opportunity);
-    if (opp) {
-      opp.funded += 1;
-    }
-
-    store.auditLogs.unshift({
-      id: Date.now(),
-      actor: req.user?.fullName || 'Sponsor',
-      action: `Awarded scholarship to candidate ${candidate.name}`,
-      time: 'Just now',
-      device: req.ip || 'Local',
-      type: 'Review'
-    });
-
-    return res.json({
-      success: true,
-      message: `Candidate ${candidate.name} awarded successfully.`,
-      candidate
-    });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: 'Failed to select beneficiary.' });
-  }
+    const c = store.candidates.find(x => String(x.id) === String(req.body.candidateId)); if (!c) return res.status(404).json({ success: false, message: 'Candidate not found.' }); c.status = 'Completed'; c.recommendation = 'Recommend'; return res.json({ success: true, candidate: c });
+  } catch (err) { return res.status(500).json({ success: false, message: 'Failed to select beneficiary.' }); }
 }
-
-/**
- * List funded learners
- */
-function getFundedStudents(req, res) {
-  try {
-    const fundedList = store.candidates.filter(c => c.status === 'Completed' || c.recommendation === 'Recommend');
-    return res.json({ success: true, count: fundedList.length, fundedStudents: fundedList });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: 'Failed to retrieve funded learners.' });
-  }
+async function getFundedStudents(req, res) {
+  try { const rows = isLiveDatabase() ? (await query(`SELECT a.*,u.full_name AS name,s.school,s.grade,o.title AS opportunity FROM applications a JOIN students s ON s.id=a.student_id JOIN users u ON u.id=s.user_id JOIN opportunities o ON o.id=a.opportunity_id WHERE a.status='Awarded'`)).rows : store.candidates.filter(x => x.status === 'Completed' || x.recommendation === 'Recommend'); return res.json({ success: true, count: rows.length, fundedStudents: rows }); } catch (err) { return res.status(500).json({ success: false, message: 'Failed to retrieve funded learners.' }); }
 }
-
-module.exports = {
-  getOpportunities,
-  createOpportunity,
-  updateOpportunity,
-  getApplicants,
-  selectBeneficiary,
-  getFundedStudents
-};
+module.exports = { getOpportunities, createOpportunity, updateOpportunity, getApplicants, selectBeneficiary, getFundedStudents };

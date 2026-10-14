@@ -68,36 +68,54 @@ const initialActivity=[
 const money=(n:number)=>`KES ${n.toLocaleString('en-KE')}`;
 const initials=(name:string)=>name.split(/[ .]/).filter(Boolean).slice(0,2).map(p=>p[0]).join('').toUpperCase();
 const niceDate=()=>new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
-const emptyNotice='Everything you see here is sample data. Saves, uploads, reviews and messages stay in this browser only.';
+const emptyNotice='Your changes are saved to the IKODI service.';
 const load=(key:string,fallback:any)=>{try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback}catch{return fallback}};
 function App(){
   const [role,setRole]=useState<Role>(()=>load('ikodi-role','Applicant / Beneficiary'));
-  const [opps,setOpps]=useState<Opportunity[]>(()=>load('ikodi-opps',initialOpps));
-  const [candidates,setCandidates]=useState<Candidate[]>(()=>load('ikodi-candidates',initialCandidates));
-  const [messages,setMessages]=useState<Message[]>(()=>load('ikodi-messages',initialMessages));
-  const [applied,setApplied]=useState<number[]>(()=>load('ikodi-applied',[101]));
-  const [profile,setProfile]=useState(()=>load('ikodi-profile',{name:'Achieng O. Wanjala',school:'Kisumu Girls High School',grade:'Form 4 · STEM',guardian:'Peter Wanjala',email:'achieng.wanjala@demo.ikodi'}));
-  const [uploads,setUploads]=useState<string[]>(()=>load('ikodi-uploads',[]));
+  const [user,setUser]=useState<any>(null);
+  const [opps,setOpps]=useState<Opportunity[]>([]);
+  const [candidates,setCandidates]=useState<Candidate[]>([]);
+  const [messages,setMessages]=useState<Message[]>([]);
+  const [applied,setApplied]=useState<number[]>([]);
+  const [profile,setProfile]=useState<any>({});
+  const [uploads,setUploads]=useState<string[]>([]);
+  const [people,setPeople]=useState<any[]>([]);
+  const [activity,setActivity]=useState<any[]>([]);
   const [notice,setNotice]=useState('');
   const [modal,setModal]=useState<{kind:string;item?:any}|null>(null);
   const [location,navigate]=useLocation();
   useEffect(()=>{localStorage.setItem('ikodi-role',JSON.stringify(role))},[role]);
-  useEffect(()=>{localStorage.setItem('ikodi-opps',JSON.stringify(opps))},[opps]);
-  useEffect(()=>{localStorage.setItem('ikodi-candidates',JSON.stringify(candidates))},[candidates]);
-  useEffect(()=>{localStorage.setItem('ikodi-messages',JSON.stringify(messages))},[messages]);
-  useEffect(()=>{localStorage.setItem('ikodi-applied',JSON.stringify(applied))},[applied]);
-  useEffect(()=>{localStorage.setItem('ikodi-profile',JSON.stringify(profile))},[profile]);
-  useEffect(()=>{localStorage.setItem('ikodi-uploads',JSON.stringify(uploads))},[uploads]);
   useEffect(()=>{if(!notice)return;const t=setTimeout(()=>setNotice(''),3600);return()=>clearTimeout(t)},[notice]);
 
   // Synchronize state with backend API
   useEffect(() => {
     api.setRole(role);
-    api.getOpportunities().then(r => { if (r?.opportunities?.length) setOpps(r.opportunities); }).catch(() => {});
-    api.getAssignedApplications().then(r => { if (r?.applications?.length) setCandidates(r.applications); }).catch(() => {});
-    api.getMessages().then(r => { if (r?.messages?.length) setMessages(r.messages); }).catch(() => {});
-    api.getStudentProfile().then(r => { if (r?.profile) setProfile((p: any) => ({ ...p, ...r.profile })); }).catch(() => {});
+    api.getOpportunities().then(r => setOpps(r?.opportunities || [])).catch(() => setOpps([]));
+    api.getAssignedApplications().then(r => setCandidates(r?.applications || [])).catch(() => setCandidates([]));
+    api.getMessages().then(r => setMessages(r?.messages || [])).catch(() => setMessages([]));
+    api.getStudentProfile().then(r => setProfile(r?.profile || {})).catch(() => setProfile({}));
+    if (['Secretary', 'Admin', 'Super Admin'].includes(role)) {
+      api.getUsers().then(r => setPeople(r?.users || [])).catch(() => setPeople([]));
+      api.getAuditLogs().then(r => setActivity(r?.auditLogs || [])).catch(() => setActivity([]));
+    }
   }, [role]);
+  useEffect(() => {
+    const loadCurrentUser = () => {
+      if (!api.getToken()) {
+        setUser(null);
+        return;
+      }
+      api.getMe().then((r: any) => {
+        if (r?.user) {
+          setUser(r.user);
+          if (roles.includes(r.user.role as Role)) setRole(r.user.role as Role);
+        }
+      }).catch(() => setUser(null));
+    };
+    loadCurrentUser();
+    window.addEventListener('ikodi-auth-changed', loadCurrentUser);
+    return () => window.removeEventListener('ikodi-auth-changed', loadCurrentUser);
+  }, []);
 
   const route=location==='/'?'entry':location.replace('/','')||'portal';
   const roleName=role.split(' / ')[0];
@@ -118,7 +136,11 @@ function App(){
   const recordUpload=(name:string,file?:File)=>{setUploads(u=>[name,...u]);if(file){api.uploadResults(file).catch(()=>{});}setModal(null);toast('Document uploaded and added to review queue.')}
   const openForm=(kind:string,item?:any)=>setModal({kind,item});
   const pageTitle:Record<string,string>={portal:'Your IKODI workspace',applications:'Applications',opportunities:'Scholarship opportunities',reviews:'Review desk',records:'Records & oversight',messages:'Messages',audit:'Audit trail',reports:'Reports & insights'};
-  if(route==='entry')return <Entry onChoose={chooseRole}/>;
+  if(!user)return <AuthLanding onAuthenticated={(nextUser: any) => {
+    setUser(nextUser);
+    if (roles.includes(nextUser.role as Role)) setRole(nextUser.role as Role);
+    navigate('/portal');
+  }}/>;
   const currentPage=pageTitle[route];
   if(!currentPage)return <NotFound/>;
   return <div className="app">
@@ -129,21 +151,21 @@ function App(){
       <div className="side-bottom">
         <div className="side-label">Help & context</div>
         <button className="nav-link" onClick={()=>setModal({kind:'help'})}><CircleHelp size={17}/>How this demo works</button>
-        <div className="demo-note"><b>DEMO WORKSPACE</b>Sample records only. Changes are saved to this browser and do not reach a live service.</div>
-        <div className="profile-mini"><div className="avatar">{initials(displayName)}</div><div><b>{displayName}</b><small>{roleName} · Demo</small></div><button title="Switch demo role" className="icon-button" style={{marginLeft:'auto',width:29,height:29}} onClick={()=>navigate('/')}><RotateCcw size={13}/></button></div>
+        <div className="demo-note"><b>SECURE WORKSPACE</b>Your account data is protected and synchronized with the IKODI service.</div>
+        <div className="profile-mini"><div className="avatar">{initials(user.fullName || displayName)}</div><div><b>{user.fullName || displayName}</b><small>{roleName}</small></div></div>
       </div>
     </aside>
     <main className="main">
       <header className="topbar"><div className="crumb">IKODI <span style={{padding:'0 7px',color:'#b4bbb7'}}>/</span><b>{currentPage}</b></div>
-        <div className="top-actions"><button className="btn small secondary no-print" title="Account Sign In" onClick={()=>setModal({kind:'auth'})}><LogIn size={13}/>Sign In</button><select aria-label="Switch demo role" className="role-select" value={role} onChange={e=>{chooseRole(e.target.value as Role)}}>{roles.map(r=><option key={r}>{r}</option>)}</select><button className="icon-button" title="Notifications" onClick={()=>navigate('/messages')}><Bell size={16}/><i className="notify-dot"/></button><div className="avatar">{initials(displayName)}</div></div></header>
+        <div className="top-actions"><button className="btn small secondary no-print" title="Sign out" onClick={()=>{api.setToken(null);setUser(null);navigate('/')}}><LogIn size={13}/>Sign out</button><button className="icon-button" title="Notifications" onClick={()=>navigate('/messages')}><Bell size={16}/><i className="notify-dot"/></button><div className="avatar">{initials(user.fullName || displayName)}</div></div></header>
       <div className="page">
         {route==='portal'&&<Portal role={role} profile={profile} applied={applied} candidates={candidates} opps={opps} go={navigate} setModal={openForm}/>}
         {route==='applications'&&<Applications role={role} profile={profile} setProfile={setProfile} candidates={candidates} opps={opps} applied={applied} uploads={uploads} setModal={openForm} toast={toast} doApply={doApply}/>}
         {route==='opportunities'&&<Opportunities role={role} candidates={candidates} opps={opps} applied={applied} setModal={openForm} toast={toast}/>}
         {route==='reviews'&&<Reviews role={role} candidates={candidates} setCandidates={setCandidates} setModal={openForm}/>}
-        {route==='records'&&<Records role={role} profile={profile} toast={toast}/>}
+        {route==='records'&&<Records role={role} profile={profile} people={people} activity={activity} toast={toast}/>}
         {route==='messages'&&<Messages role={role} messages={messages} setModal={openForm}/>}
-        {route==='audit'&&<Audit role={role}/>}
+        {route==='audit'&&<Audit role={role} activity={activity}/>}
         {route==='reports'&&<Reports role={role} candidates={candidates} opps={opps}/>}
       </div>
     </main>
@@ -153,19 +175,39 @@ function App(){
   </div>
 }
 
+function AuthLanding({onAuthenticated}:{onAuthenticated:(user:any)=>void}){
+  const [mode,setMode]=useState<'login'|'register'>('login');
+  const [error,setError]=useState('');
+  const submit=async (event:React.FormEvent<HTMLFormElement>)=>{
+    event.preventDefault();
+    const form=new FormData(event.currentTarget);
+    try {
+      const role=String(form.get('role')||'Applicant / Beneficiary') as Role;
+      const result=mode==='login'
+        ? await api.login(String(form.get('email')),String(form.get('password')),role)
+        : await api.register({email:String(form.get('email')),password:String(form.get('password')),fullName:String(form.get('fullName')),role});
+      window.dispatchEvent(new Event('ikodi-auth-changed'));
+      onAuthenticated(result.user);
+    } catch (err: any) {
+      setError(err.message || 'Unable to authenticate. Please try again.');
+    }
+  };
+  return <div className="landing"><nav className="landing-nav"><div className="landing-logo"><img src="/ikodi-logo.jpeg" alt="IKODI logo"/><div><strong>IKODI</strong><small>SPONSORSHIP & SCHOLARSHIPS</small></div></div><span className="badge" style={{background:'#e5f0e8'}}>SECURE PORTAL</span></nav><main className="landing-main"><section className="landing-hero"><div className="landing-copy"><div className="eyebrow">A little support can change a whole story</div><h1>Good futures<br/>grow <em>together.</em></h1><p>Sign in to manage scholarships, applications, reviews and learner progress through the IKODI service.</p></div><form className="panel" style={{maxWidth:430,width:'100%'}} onSubmit={submit}><div className="panel-head"><div><h2>{mode==='login'?'Sign in to IKODI':'Create your account'}</h2><div className="panel-kicker">{mode==='login'?'Use your assigned account credentials.':'Students and parents can create accounts.'}</div></div></div>{error&&<div className="notice">{error}</div>}<div className="form-grid">{mode==='register'&&<div className="field full"><label>Full name</label><input name="fullName" required/></div>}<div className="field full"><label>Email address</label><input type="email" name="email" required/></div><div className="field full"><label>Password</label><input type="password" name="password" minLength={8} required/></div><div className="field full"><label>Portal role</label><select name="role" defaultValue="Applicant / Beneficiary">{(mode==='register'?roles.filter(r=>r==='Applicant / Beneficiary'||r==='Parent / Guardian'):roles).map(r=><option key={r}>{r}</option>)}</select></div></div><div className="drawer-actions"><button type="button" className="btn secondary" onClick={()=>{setMode(mode==='login'?'register':'login');setError('')}}>{mode==='login'?'Create account':'Back to sign in'}</button><button className="btn">{mode==='login'?'Sign in':'Register'}</button></div></form></section></main></div>;
+}
+
 function Entry({onChoose}:{onChoose:(role:Role)=>void}){
   return <div className="landing">
-    <nav className="landing-nav"><div className="landing-logo"><img src="/ikodi-logo.jpeg" alt="IKODI logo"/><div><strong>IKODI</strong><small>SPONSORSHIP & SCHOLARSHIPS</small></div></div><span className="badge" style={{background:'#e5f0e8'}}>LOCAL DEMO · NO ACCOUNT NEEDED</span></nav>
+    <nav className="landing-nav"><div className="landing-logo"><img src="/ikodi-logo.jpeg" alt="IKODI logo"/><div><strong>IKODI</strong><small>SPONSORSHIP & SCHOLARSHIPS</small></div></div><span className="badge" style={{background:'#e5f0e8'}}>SECURE PORTAL</span></nav>
     <main className="landing-main">
       <section className="landing-hero">
-        <div className="landing-copy"><div className="eyebrow">A little support can change a whole story</div><h1>Good futures<br/>grow <em>together.</em></h1><p>One welcoming place to discover support, share your progress, and help promising learners move forward. Explore IKODI as any role—this is a local demo, not a live service.</p>
+        <div className="landing-copy"><div className="eyebrow">A little support can change a whole story</div><h1>Good futures<br/>grow <em>together.</em></h1><p>One welcoming place to discover support, share your progress, and help promising learners move forward.</p>
           <div className="trust-line"><span/>Built around people, not paperwork <ArrowRight size={14}/></div></div>
         <div className="entry-art" aria-label="Scholarship support illustration"><div className="float-note one">A new step<b>Application received</b></div><div className="art-tile"><span className="tile-label">The next chapter</span><strong>Education opens more doors when we open them together.</strong><small>Explore the IKODI demo portal</small></div><div className="float-note two">A future funded<b>Scholarship · KES 85,000</b></div></div>
       </section>
-      <section className="entry-section"><div className="entry-section-head"><div><h2>Choose a demo point of view</h2><p>Switch roles any time. Each opens a different set of tools and sample records.</p></div><span className="eyebrow">7 ROLE VIEWS</span></div>
+      <section className="entry-section"><div className="entry-section-head"><div><h2>Choose your portal</h2><p>Sign in with the account assigned to your role.</p></div><span className="eyebrow">7 ROLE VIEWS</span></div>
         <div className="role-card-grid">{roles.map((r,i)=>{const Icon=roleIcons[i];const desc=['Find opportunities, apply and keep your profile up to date.','Follow a learner’s progress and stay in touch.','Create funding opportunities and follow funded learners.','Assess assigned applications and record recommendations.','Support the coordination of people and records.','Coordinate sponsors, applications and award decisions.','Explore full administration and system oversight tools.'][i];return <button key={r} className="role-card" onClick={()=>onChoose(r)} data-testid={`button-enter-${i}`}><span className="role-icon"><Icon size={17}/></span><b>{r}</b><small>{desc}</small></button>})}</div>
       </section>
-      <footer className="footer-note"><span>IKODI · “I am with you”</span><span>Fictional records · Local browser storage · No real sign-in</span></footer>
+      <footer className="footer-note"><span>IKODI · “I am with you”</span><span>Secure account access · Supabase-backed records</span></footer>
     </main>
   </div>
 }
@@ -228,34 +270,34 @@ function Reviews({role,candidates,setCandidates,setModal}:{role:Role;candidates:
  <div className="table-wrap"><table><thead><tr><th>Candidate</th><th>Opportunity</th><th>Submitted</th><th>Score</th><th>Recommendation</th><th/></tr></thead><tbody>{records.map(c=><tr key={c.id}><td><div className="person"><div className="avatar">{initials(c.name)}</div><div><b>{c.name}</b><small>{c.school} · {c.grade}</small></div></div></td><td>{c.opportunity}</td><td>{c.submitted}</td><td><span className="review-score"><span className="score-dot">{c.score}</span>/100</span></td><td><Badge>{c.recommendation}</Badge></td><td><button className="text-link" onClick={()=>setModal('candidate',c)}>{c.status==='Completed'?'View':'Evaluate'} <ArrowRight size={12}/></button></td></tr>)}</tbody></table>{!records.length&&<div className="empty">No applications in this view.</div>}</div></div>
  <div className="notice">Use the same rubric for each candidate. A recommendation is a demo record and does not constitute an award decision.</div></>}
 
-function Records({role,profile,toast}:{role:Role;profile:any;toast:(t:string)=>void}){
+function Records({role,profile,people,activity,toast}:{role:Role;profile:any;people:any[];activity:any[];toast:(t:string)=>void}){
  const [tab,setTab]=useState('People');const [query,setQuery]=useState('');const [card,setCard]=useState(true);
  const allowed=['Admin','Super Admin','Secretary'].includes(role);
  return <><PageHead eyebrow="ADMINISTRATION & OVERSIGHT" title="Records with context" description="Coordinate profiles, organizations and activity history with care. All records below are fictional demo examples." action={<button className="btn secondary" onClick={()=>toast('Report prepared from sample data only.')}><ArrowDownRight size={14}/>Limited report</button>}/>
  {!allowed&&<div className="notice">Records are most useful in an admin or secretary view. This sample overview is available to explore; switch roles for the full work queue.</div>}
  <div className="stat-grid"><Stat label="User profiles" value="248" foot="Learners, guardians and staff" icon={Users}/><Stat label="Partner organizations" value="12" foot="8 verified · 4 in progress" icon={Building2}/><Stat label="Recent sign-ins" value="37" foot="Sample activity · last 7 days" icon={Activity}/><Stat label="Audit events" value="142" foot="Sample events · last 30 days" icon={Shield}/></div>
  <div className="panel"><div className="panel-head"><div><h2>Operations desk</h2><div className="panel-kicker">People, organizations, history and learner ID preview</div></div><button className="btn secondary small" onClick={()=>setCard(v=>!v)}><IdCard size={14}/>{card?'Hide':'Show'} ID card</button></div><div className="toolbar">{['People','Organizations','Audit & sessions'].map(t=><button key={t} className={`btn small ${tab===t?'':'secondary'}`} onClick={()=>setTab(t)}>{t}</button>)}<div className="searchbar" style={{marginLeft:'auto'}}><Search size={14}/><input aria-label="Search records" placeholder={`Search ${tab.toLowerCase()}`} value={query} onChange={e=>setQuery(e.target.value)}/></div></div>
- {tab==='People'&&<div className="table-wrap"><table><thead><tr><th>Name / ID</th><th>Role</th><th>Organization</th><th>Status</th><th>Last active</th></tr></thead><tbody>{people.filter(p=>`${p.name} ${p.email} ${p.role}`.toLowerCase().includes(query.toLowerCase())).map(p=><tr key={p.id}><td><div className="person"><div className="avatar">{initials(p.name)}</div><div><b>{p.name}</b><small>{p.id} · {p.email}</small></div></div></td><td>{p.role}</td><td>{p.organization}</td><td><Badge>{p.status}</Badge></td><td>{p.lastActive}</td></tr>)}</tbody></table></div>}
+ {tab==='People'&&<div className="table-wrap"><table><thead><tr><th>Name / ID</th><th>Role</th><th>Organization</th><th>Status</th><th>Last active</th></tr></thead><tbody>{people.filter(p=>`${p.name} ${p.email} ${p.role}`.toLowerCase().includes(query.toLowerCase())).map(p=><tr key={p.id}><td><div className="person"><div className="avatar">{initials(p.name)}</div><div><b>{p.name}</b><small>{p.id} · {p.email}</small></div></div></td><td>{p.role}</td><td>{p.organization}</td><td><Badge>{p.status}</Badge></td><td>{p.lastActive}</td></tr>)}</tbody></table>{!people.length&&<div className="empty">No user records available.</div>}</div>}
  {tab==='Organizations'&&<div className="table-wrap"><table><thead><tr><th>Organization</th><th>Contact</th><th>Opportunities</th><th>Learners funded</th><th>Status</th></tr></thead><tbody>{[['Mwangaza Education Trust','programmes@mwangaza.demo','2','18','Verified'],['Umoja Women’s Fund','awards@umoja.demo','1','12','Verified'],['Pwani Community Foundation','hello@pwani.demo','1','24','Verified'],['Tawi Technology Partners','impact@tawi.demo','1','15','In review']].filter(r=>r.join(' ').toLowerCase().includes(query.toLowerCase())).map(r=><tr key={r[0]}><td><b>{r[0]}</b></td><td>{r[1]}</td><td>{r[2]}</td><td>{r[3]}</td><td><Badge>{r[4]}</Badge></td></tr>)}</tbody></table></div>}
- {tab==='Audit & sessions'&&<div className="table-wrap"><table><thead><tr><th>Actor</th><th>Action</th><th>Timestamp</th><th>IP / device label</th></tr></thead><tbody>{initialActivity.filter(r=>r.join(' ').toLowerCase().includes(query.toLowerCase())).map((r,i)=><tr key={i}><td><b>{r[0]}</b></td><td>{r[1]}</td><td>{r[2]}</td><td>{r[3]}</td></tr>)}</tbody></table></div>}
+ {tab==='Audit & sessions'&&<div className="table-wrap"><table><thead><tr><th>Actor</th><th>Action</th><th>Timestamp</th><th>IP / device label</th></tr></thead><tbody>{activity.filter(r=>`${r.actor} ${r.action} ${r.time} ${r.device}`.toLowerCase().includes(query.toLowerCase())).map((r,i)=><tr key={i}><td><b>{r.actor}</b></td><td>{r.action}</td><td>{r.time}</td><td>{r.device}</td></tr>)}</tbody></table>{!activity.length&&<div className="empty">No audit activity available.</div>}</div>}
  </div>
  {card&&<div className="panel"><div className="panel-head"><div><h2>Student ID card preview</h2><div className="panel-kicker">Printed preview · sample learner profile</div></div><button className="btn small" onClick={()=>window.print()}><Printer size={14}/>Print card</button></div><IDCard profile={profile}/><p style={{textAlign:'center',fontSize:10,color:'#829093'}}>Printing opens your browser’s print dialog. This is not an official credential.</p></div>}
  <div className="notice">Activity history and session labels are sample records. They are not connected to real sign-in tracking or a live audit service.</div></>}
 
-function Audit({role}:{role:Role}){
+function Audit({role,activity}:{role:Role;activity:any[]}){
  const [query,setQuery]=useState('');
  const [eventType,setEventType]=useState('All activity');
  const allowed=['Secretary','Admin','Super Admin'].includes(role);
- const events=initialActivity.map((row,index)=>({
-   id:index+1,actor:row[0],action:row[1],time:row[2],device:row[3],
-   type:index===0?'Review':index===1?'Organization':index===2?'Application':'Session',
+ const events=activity.map((row,index)=>({
+   id:row.id||index+1,actor:row.actor,action:row.action,time:row.time,device:row.device,
+   type:row.type||'System',
  }));
  const filtered=events.filter(event=>
    `${event.actor} ${event.action} ${event.time} ${event.device} ${event.type}`.toLowerCase().includes(query.toLowerCase())&&
    (eventType==='All activity'||event.type===eventType)
  );
  return <><PageHead eyebrow="ADMINISTRATION & OVERSIGHT" title="Audit trail" description="A clear view of example activity and session events across the IKODI demo workspace."/>
-   {!allowed?<section className="panel audit-limited" role="status"><span className="audit-mark"><Shield size={21}/></span><h2>Staff access only</h2><p>The audit trail is available in the Secretary, Admin and Super Admin demo views. Switch roles to explore the sample activity log.</p><div className="badge review">Demo role access · not real security</div></section>:
+   {!allowed?<section className="panel audit-limited" role="status"><span className="audit-mark"><Shield size={21}/></span><h2>Staff access only</h2><p>The audit trail is available to authorized Secretary, Admin and Super Admin accounts.</p><div className="badge review">Authorization required</div></section>:
    <>
     <div className="audit-summary"><div><span className="audit-summary-icon"><Activity size={18}/></span><div><b>Sample activity log</b><small>Illustrative records · not connected to live sessions</small></div></div><span className="badge pending">{events.length} sample events</span></div>
     <section className="panel audit-panel"><div className="panel-head"><div><h2>Recent activity</h2><div className="panel-kicker">Actions and session labels shown in local demo data</div></div><span className="audit-range"><Clock3 size={14}/> Recent sample events</span></div>
@@ -330,6 +372,7 @@ function Modal({modal,close,role,profile,setProfile,opps,doApply,saveOpportunity
          const res=await api.register({email,password,fullName,role:authRole});
          toast(res.message||'Registered and signed in.');
        }
+       window.dispatchEvent(new Event('ikodi-auth-changed'));
        close();
      } catch(err:any){
        toast(err.message||'Authentication failed. Please check credentials.');
@@ -337,13 +380,13 @@ function Modal({modal,close,role,profile,setProfile,opps,doApply,saveOpportunity
    })}>
      <div style={{display:'flex',gap:10,marginBottom:18}}>
        <button type="button" className={`btn small ${authMode==='login'?'':'secondary'}`} onClick={()=>setAuthMode('login')}>Sign In</button>
-       <button type="button" className={`btn small ${authMode==='register'?'':'secondary'}`} onClick={()=>setAuthMode('register')}>Create Account</button>
+       <button type="button" className={`btn small ${authMode==='register'?'':'secondary'}`} onClick={()=>{setAuthMode('register');if(authRole!=='Applicant / Beneficiary'&&authRole!=='Parent / Guardian')setAuthRole('Applicant / Beneficiary')}}>Create Account</button>
      </div>
      <div className="form-grid">
        {authMode==='register'&&<div className="field full"><label>Full Name</label><input name="fullName" required placeholder="e.g. Achieng Wanjala"/></div>}
        <div className="field full"><label>Email address</label><input type="email" name="email" required placeholder="user@example.com"/></div>
        <div className="field full"><label>Password</label><input type="password" name="password" required placeholder="••••••••"/></div>
-       <div className="field full"><label>Portal Role</label><select value={authRole} onChange={e=>setAuthRole(e.target.value as Role)}>{roles.map(r=><option key={r}>{r}</option>)}</select></div>
+       <div className="field full"><label>Portal Role</label><select value={authRole} onChange={e=>setAuthRole(e.target.value as Role)}>{(authMode==='register'?roles.filter(r=>r==='Applicant / Beneficiary'||r==='Parent / Guardian'):roles).map(r=><option key={r}>{r}</option>)}</select></div>
      </div>
      <div className="drawer-actions" style={{marginTop:20}}>
        <button type="button" className="btn secondary" onClick={close}>Cancel</button>

@@ -46,10 +46,6 @@ class ApiClient {
     if (this.token) {
       headers.set('Authorization', `Bearer ${this.token}`);
     }
-    if (this.currentRole) {
-      headers.set('X-Demo-Role', this.currentRole);
-    }
-
     if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json');
     }

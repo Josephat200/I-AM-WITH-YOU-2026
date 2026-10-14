@@ -123,6 +123,36 @@ The database will be hosted on **Supabase** as PostgreSQL. Follow these steps wh
 
 ---
 
+## 🌐 Netlify Backend Deployment Guide
+
+The backend can be deployed as a Netlify Function. Create a **separate Netlify
+site** for the backend and configure it as follows:
+
+1. Import this GitHub repository into Netlify.
+2. Set the **Base directory** to `backend`.
+3. Netlify will use [`backend/netlify.toml`](<C:/Users/SIR.JOSPHAT/Desktop/I AM WITH YOU/I-AM-WITH-YOU-2026/backend/netlify.toml>).
+4. Add these environment variables to the backend site:
+   - `DATABASE_URL`: the Supabase PostgreSQL connection string.
+   - `JWT_SECRET`: a secure random secret.
+   - `NODE_ENV`: `production`.
+   - `SUPABASE_URL`: the Supabase project URL.
+   - `SUPABASE_SERVICE_ROLE_KEY`: server-only Supabase service-role key.
+   - `SUPABASE_STORAGE_BUCKET`: the private bucket used for uploads.
+5. Deploy the site. The backend URL will expose the existing API under
+   `https://YOUR-BACKEND-SITE.netlify.app/api/...`.
+6. On the frontend Netlify site, set `VITE_API_URL` to
+   `https://YOUR-BACKEND-SITE.netlify.app/api`.
+
+The health check is:
+
+```text
+https://YOUR-BACKEND-SITE.netlify.app/api/healthz
+```
+
+Supabase Storage is required for durable production uploads. Netlify Functions
+have ephemeral local filesystems, so the service-role key must remain on the
+backend site and must never be exposed to the frontend.
+
 ## 🚂 Railway Backend Deployment Guide
 
 Deploying the Express backend to **Railway**:
@@ -133,7 +163,7 @@ Deploying the Express backend to **Railway**:
 4. Set the **Root Directory** to `backend`.
 5. Under **Variables**, add the following environment variables:
    - `DATABASE_URL`: Your Supabase connection string from the previous section.
-   - `JWT_SECRET`: A secure random secret string (e.g. `ikodi_super_secure_jwt_secret_token_2026`).
+   - `JWT_SECRET`: A secure random secret string.
    - `NODE_ENV`: `production`
 6. Railway will automatically detect [`backend/Procfile`](file:///C:/Users/SIR.JOSPHAT/.gemini/antigravity/scratch/I-AM-WITH-YOU-2026/backend/Procfile) (`web: node src/server.js`) and assign `PORT`.
 7. Once deployed, Railway provides a public URL (e.g. `https://ikodi-backend-production.up.railway.app`). Note this URL!

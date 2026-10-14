@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Demo-Role']
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Body parsers
@@ -59,12 +59,15 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start Express server
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`====================================================`);
-  console.log(`🚀 IKODI Backend Server running on port ${PORT}`);
-  console.log(`📡 Health Check: http://localhost:${PORT}/api/healthz`);
-  console.log(`====================================================`);
-});
+// Netlify imports the Express app from a function handler, while local and
+// Railway deployments run this file directly.
+if (require.main === module) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`====================================================`);
+    console.log(`🚀 IKODI Backend Server running on port ${PORT}`);
+    console.log(`📡 Health Check: http://localhost:${PORT}/api/healthz`);
+    console.log(`====================================================`);
+  });
+}
 
 module.exports = app;

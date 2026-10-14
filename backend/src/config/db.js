@@ -16,10 +16,11 @@ if (process.env.DATABASE_URL && process.env.DATABASE_URL.trim() !== '') {
     useDatabase = true;
     console.log('[Database] Configured PostgreSQL pool with Supabase connection string.');
   } catch (err) {
-    console.warn('[Database] Failed to initialize PostgreSQL pool, using resilient fallback store:', err.message);
+    console.error('[Database] Failed to initialize PostgreSQL pool:', err.message);
+    pool = null;
   }
 } else {
-  console.log('[Database] No DATABASE_URL provided. Operating in resilient fallback mode for Supabase deployment.');
+  console.log('[Database] No DATABASE_URL provided. Operating in local demo fallback mode.');
 }
 
 // Resilient in-memory fallback store matching the Supabase schema
@@ -28,7 +29,7 @@ const fallbackStore = {
     {
       id: 'a0000001-0000-0000-0000-000000000001',
       email: 'mercy@demo.ikodi',
-      passwordHash: '$2a$10$wT8KzQ7tQz7.y4B0.U6yhePqYw9v.tU9lG7wR0YmB7U8q9w.tU9lG',
+      passwordHash: '$2a$10$FkKGe6xPvvvHcr9UcbEQyeVATxP66cVmQFMvogo/imtAnqdh1lKuK',
       fullName: 'Mercy W. Akinyi',
       role: 'Super Admin',
       phone: '+254 700 000 001',
@@ -39,7 +40,7 @@ const fallbackStore = {
     {
       id: 'a0000001-0000-0000-0000-000000000002',
       email: 'daniel@demo.ikodi',
-      passwordHash: '$2a$10$wT8KzQ7tQz7.y4B0.U6yhePqYw9v.tU9lG7wR0YmB7U8q9w.tU9lG',
+      passwordHash: '$2a$10$FkKGe6xPvvvHcr9UcbEQyeVATxP66cVmQFMvogo/imtAnqdh1lKuK',
       fullName: 'Daniel Kiplagat',
       role: 'Admin',
       phone: '+254 700 000 002',
@@ -50,7 +51,7 @@ const fallbackStore = {
     {
       id: 'a0000001-0000-0000-0000-000000000003',
       email: 'lilian@demo.ikodi',
-      passwordHash: '$2a$10$wT8KzQ7tQz7.y4B0.U6yhePqYw9v.tU9lG7wR0YmB7U8q9w.tU9lG',
+      passwordHash: '$2a$10$FkKGe6xPvvvHcr9UcbEQyeVATxP66cVmQFMvogo/imtAnqdh1lKuK',
       fullName: 'Lilian Atieno',
       role: 'Secretary',
       phone: '+254 700 000 003',
@@ -61,7 +62,7 @@ const fallbackStore = {
     {
       id: 'a0000001-0000-0000-0000-000000000004',
       email: 'nadia@demo.ikodi',
-      passwordHash: '$2a$10$wT8KzQ7tQz7.y4B0.U6yhePqYw9v.tU9lG7wR0YmB7U8q9w.tU9lG',
+      passwordHash: '$2a$10$FkKGe6xPvvvHcr9UcbEQyeVATxP66cVmQFMvogo/imtAnqdh1lKuK',
       fullName: 'Nadia Njoroge',
       role: 'Reviewer / Selection Committee',
       phone: '+254 700 000 004',
@@ -72,7 +73,7 @@ const fallbackStore = {
     {
       id: 'a0000001-0000-0000-0000-000000000005',
       email: 'programmes@mwangaza.demo',
-      passwordHash: '$2a$10$wT8KzQ7tQz7.y4B0.U6yhePqYw9v.tU9lG7wR0YmB7U8q9w.tU9lG',
+      passwordHash: '$2a$10$FkKGe6xPvvvHcr9UcbEQyeVATxP66cVmQFMvogo/imtAnqdh1lKuK',
       fullName: 'Mwangaza Education Trust',
       role: 'Sponsor / Funding Organization',
       phone: '+254 20 223 4567',
@@ -83,7 +84,7 @@ const fallbackStore = {
     {
       id: 'a0000001-0000-0000-0000-000000000006',
       email: 'achieng.wanjala@demo.ikodi',
-      passwordHash: '$2a$10$wT8KzQ7tQz7.y4B0.U6yhePqYw9v.tU9lG7wR0YmB7U8q9w.tU9lG',
+      passwordHash: '$2a$10$FkKGe6xPvvvHcr9UcbEQyeVATxP66cVmQFMvogo/imtAnqdh1lKuK',
       fullName: 'Achieng O. Wanjala',
       role: 'Applicant / Beneficiary',
       phone: '+254 712 345 678',
@@ -94,7 +95,7 @@ const fallbackStore = {
     {
       id: 'a0000001-0000-0000-0000-000000000007',
       email: 'p.wanjala@demo.ikodi',
-      passwordHash: '$2a$10$wT8KzQ7tQz7.y4B0.U6yhePqYw9v.tU9lG7wR0YmB7U8q9w.tU9lG',
+      passwordHash: '$2a$10$FkKGe6xPvvvHcr9UcbEQyeVATxP66cVmQFMvogo/imtAnqdh1lKuK',
       fullName: 'Peter Wanjala',
       role: 'Parent / Guardian',
       phone: '+254 722 987 654',
@@ -363,6 +364,9 @@ async function query(text, params) {
       console.error('[Database Query Error]:', err.message);
       throw err;
     }
+  }
+  if (process.env.DATABASE_URL && process.env.DATABASE_URL.trim() !== '') {
+    throw new Error('DATABASE_URL is configured but PostgreSQL is unavailable');
   }
   return { rows: [] };
 }

@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'ikodi_super_secure_jwt_secret_token_2026';
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? null : 'ikodi_local_demo_secret');
 
 /**
  * Middleware to authenticate requests via JWT Bearer Token
@@ -10,35 +10,17 @@ function authenticateToken(req, res, next) {
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
-    // If no token is provided, check for demo role header
-    const demoRole = req.headers['x-demo-role'];
-    if (demoRole) {
-      req.user = {
-        id: 'demo-user-id',
-        email: 'demo@ikodi.org',
-        fullName: 'Demo User',
-        role: demoRole
-      };
-      return next();
-    }
     return res.status(401).json({ success: false, message: 'Authentication required. No token provided.' });
   }
 
   try {
+    if (!JWT_SECRET) {
+      return res.status(500).json({ success: false, message: 'JWT_SECRET is not configured.' });
+    }
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
     next();
   } catch (err) {
-    // Fallback: If token expired or invalid in dev/demo mode
-    if (req.headers['x-demo-role']) {
-      req.user = {
-        id: 'demo-user-id',
-        email: 'demo@ikodi.org',
-        fullName: 'Demo User',
-        role: req.headers['x-demo-role']
-      };
-      return next();
-    }
     return res.status(403).json({ success: false, message: 'Invalid or expired token.' });
   }
 }
@@ -59,10 +41,7 @@ function authorizeRoles(...roles) {
       return next();
     }
 
-    // Role matching (supports partial matching like 'Admin' matching 'Admin')
-    const hasRole = roles.some(role => 
-      role === userRole || userRole.toLowerCase().includes(role.toLowerCase())
-    );
+    const hasRole = roles.includes(userRole);
 
     if (!hasRole) {
       return res.status(403).json({
